@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gameshow Trí Tuệ - Vượt Chướng Ngại Vật</title>
+    
+    <!-- Cấu hình MathJax để nhận diện delimiter '$' -->
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        },
+        svg: {
+          fontCache: 'global'
+        }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+        :root {
+            --primary-color: #0052D4;
+            --secondary-color: #4364F7;
+            --background-color: #f0f2f5;
+            --text-color: #333;
+            --light-text-color: #fff;
+            --correct-color: #28a745;
+            --incorrect-color: #dc3545;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --tile-gap: 10px; /* Khoảng cách giữa các ô */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--background-color);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 10px; }
+        header p { font-size: 1.1rem; color: #666; margin-bottom: 20px; }
+
+        #image-puzzle {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            aspect-ratio: 685 / 775; 
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/73/Frans_Hals_-_Portret_van_Ren%C3%A9_Descartes.jpg');
+            background-size: cover;
+            background-position: center;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px var(--shadow-color);
+        }
+        
+        #tiles-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--tile-gap);
+            width: 100%;
+            height: 100%;
+            padding: var(--tile-gap);
+        }
+
+        .tile {
+            background: linear-gradient(145deg, #2979ff, #0d47a1);
+            color: var(--light-text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            height: 100%;
+        }
+
+        .tile:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+            z-index: 20;
+        }
+
+        .tile.answered {
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            transform: scale(0);
+            opacity: 0;
+            cursor: default;
+        }
+        
+        .tile[data-question-index="0"] { grid-area: 1 / 1 / 2 / 2; }
+        .tile[data-question-index="1"] { grid-area: 1 / 2 / 2 / 3; }
+        .tile[data-question-index="3"] { grid-area: 2 / 1 / 3 / 2; }
+        .tile[data-question-index="2"] { grid-area: 2 / 2 / 3 / 3; }
+        
+        .tile[data-question-index="4"] {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: calc(50% + 3 * var(--tile-gap)); 
+            height: calc(50% + 1 * var(--tile-gap));
+            z-index: 10;
+        }
+        
+        .tile[data-question-index="4"]:hover {
+             transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        #question-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+        #question-modal.visible { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white; padding: 40px; border-radius: 15px;
+            width: 90%; max-width: 700px; transform: scale(0.9); transition: transform 0.3s;
+        }
+        #question-modal.visible .modal-content { transform: scale(1); }
+        #question-text { font-size: 1.3rem; margin-bottom: 25px; line-height: 1.6; }
+        #answers-container { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .answer-btn {
+            background-color: #f8f9fa; border: 2px solid #dee2e6; border-radius: 10px;
+            padding: 15px; font-size: 1rem; cursor: pointer; transition: all 0.2s;
+            text-align: left; width: 100%; display: flex; align-items: center;
+        }
+        .answer-btn:hover:not(:disabled) { background-color: #e9ecef; border-color: var(--secondary-color); }
+        .answer-btn.correct { background-color: #d4edda; border-color: var(--correct-color); color: #155724; font-weight: 600; }
+        .answer-btn.incorrect { background-color: #f8d7da; border-color: var(--incorrect-color); color: #721c24; animation: shake 0.5s; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-8px)} 20%,40%,60%,80%{transform:translateX(8px)} }
+        
+        #final-reveal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            color: var(--light-text-color); opacity: 0; visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s; z-index: 2000; text-align: center;
+        }
+        #final-reveal.visible { opacity: 1; visibility: visible; }
+        #final-reveal h2 { font-size: 3rem; margin-bottom: 20px; animation: fadeInDown 1s; }
+        #final-reveal p { font-size: 1.5rem; margin-bottom: 30px; animation: fadeInUp 1s 0.5s; }
+        #final-image { max-width: 90%; width: 400px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #restart-btn {
+            margin-top: 30px; padding: 15px 30px; font-size: 1.2rem;
+            background: linear-gradient(135deg, #6B89F7, var(--secondary-color));
+            color: var(--light-text-color); border: none; border-radius: 10px;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        #restart-btn:hover { transform: scale(1.05); }
+
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (min-width: 600px) { #answers-container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) {
+            header h1 { font-size: 2rem; }
+            .tile { font-size: 2.5rem; border-radius: 15px;}
+            .modal-content { padding: 20px; }
+            #question-text { font-size: 1.1rem; }
+            #final-reveal h2 { font-size: 2rem; }
+            #final-reveal p { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- THÊM CÁC THẺ ÂM THANH -->
+    <audio id="correct-sound" src="https://actions.google.com/sounds/v1/positive/success.ogg" preload="auto"></audio>
+    <audio id="incorrect-sound" src="https://actions.google.com/sounds/v1/negative/failure.ogg" preload="auto"></audio>
+    <audio id="win-sound" src="https://actions.google.com/sounds/v1/human_voices/celebratory_yell.ogg" preload="auto"></audio>
+    <audio id="tile-click-sound" src="https://actions.google.com/sounds/v1/ui/ui_tap_forward.ogg" preload="auto"></audio>
+
+    <div id="game-container">
+        <header>
+            <h1>Vượt Chướng Ngại Vật</h1>
+            <p>Trả lời 5 câu hỏi để khám phá bức chân dung bí ẩn!</p>
+        </header>
+        <div id="image-puzzle">
+            <div id="tiles-grid"></div>
+        </div>
+    </div>
+
+    <div id="question-modal">
+        <div class="modal-content">
+            <div id="question-text"></div>
+            <div id="answers-container"></div>
+        </div>
+    </div>
+
+    <div id="final-reveal">
+        <h2>XUẤT SẮC!</h2>
+        <img id="final-image" src="https://upload.wikimedia.org/wikipedia/commons/7/73/Frans_Hals_-_Portret_van_Ren%C3%A9_Descartes.jpg" alt="Chân dung René Descartes">
+        <p>Bạn đã khám phá ra chân dung của René Descartes!</p>
+        <button id="restart-btn">Chơi Lại</button>
+    </div>
+
+    <script>
+        const gameData = [
+            { question: String.raw`Vectơ nào dưới đây là một vectơ pháp tuyến của đường thẳng đi qua hai điểm $A(a;0)$ và $B(0;b)$?`, choices: [ String.raw`$\vec{n_1}=(a;-b)$`, String.raw`$\vec{n_2}=(a;b)$`, String.raw`$\vec{n_3}=(b;a)$`, String.raw`$\vec{n_4}=(-b;a)$` ], correctAnswer: 2 },
+            { question: String.raw`Phương trình tổng quát của đường thẳng đi qua hai điểm $A(2;-1)$ và $B(2;5)$ là:`, choices: [ String.raw`$x+y-1=0$`, String.raw`$2x-7y+9=0$`, String.raw`$x+2=0$`, String.raw`$x-2=0$` ], correctAnswer: 3 },
+            { question: String.raw`Cho đường thẳng có phương trình tham số $$\begin{cases} x = 2 + 3t \\ y = -1 + 4t \end{cases}$$ Vectơ nào dưới đây là vectơ chỉ phương của đường thẳng đó?`, choices: [ String.raw`$\vec{u_1} = (2; -1)$`, String.raw`$\vec{u_2} = (3; -1)$`, String.raw`$\vec{u_3} = (3; 4)$`, String.raw`$\vec{u_4} = (4; 3)$` ], correctAnswer: 2 },
+            { question: String.raw`Lập phương trình tham số của đường thẳng đi qua điểm $A(1; -2)$ và có vectơ chỉ phương $\vec{u} = (2; 5)$.`, choices: [ String.raw`$\begin{cases} x = 1 + 2t \\ y = -2 - 5t \end{cases}$`, String.raw`$\begin{cases} x = 1 + 2t \\ y = -2 + 5t \end{cases}$`, String.raw`$\begin{cases} x = 2 + t \\ y = 5 - 2t \end{cases}$`, String.raw`$\begin{cases} x = -2 + 5t \\ y = 1 + 2t \end{cases}$` ], correctAnswer: 1 },
+            { question: String.raw`Cho đường thẳng có phương trình tham số $$\begin{cases} x = 1 + 2t \\ y = 3 - t \end{cases}$$ Phương trình tổng quát của đường thẳng này là:`, choices: [ String.raw`$2x + y - 5 = 0$`, String.raw`$x + 2y - 5 = 0$`, String.raw`$x + 2y - 7 = 0$`, String.raw`$2x - y + 1 = 0$` ], correctAnswer: 2 }
+        ];
+        
+        const tilesGrid = document.getElementById('tiles-grid');
+        const questionModal = document.getElementById('question-modal');
+        const questionText = document.getElementById('question-text');
+        const answersContainer = document.getElementById('answers-container');
+        const finalReveal = document.getElementById('final-reveal');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        // TẠO ĐỐI TƯỢNG ĐỂ QUẢN LÝ ÂM THANH
+        const audio = { 
+            correct: document.getElementById('correct-sound'), 
+            incorrect: document.getElementById('incorrect-sound'), 
+            win: document.getElementById('win-sound'), 
+            click: document.getElementById('tile-click-sound') 
+        };
+        
+        let currentQuestionIndex = null, answeredCount = 0;
+
+        function initializeGame() {
+            tilesGrid.innerHTML = '';
+            answeredCount = 0;
+            finalReveal.classList.remove('visible');
+            gameData.forEach((_, index) => {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.dataset.questionIndex = index;
+                // Đổi thứ tự hiển thị số trên ô cho khớp với hình mẫu
+                const displayOrder = [1, 2, 4, 3, 5];
+                tile.textContent = displayOrder[index];
+                tile.addEventListener('click', () => handleTileClick(index));
+                tilesGrid.appendChild(tile);
+            });
+        }
+
+        function handleTileClick(index) {
+            const tile = document.querySelector(`.tile[data-question-index='${index}']`);
+            if (tile.classList.contains('answered')) return;
+            audio.click.play(); // PHÁT ÂM THANH KHI CLICK
+            currentQuestionIndex = index;
+            showQuestion(gameData[index]);
+        }
+        
+        function showQuestion(questionData) {
+            questionText.innerHTML = questionData.question;
+            answersContainer.innerHTML = '';
+            questionData.choices.forEach((choice, index) => {
+                const button = document.createElement('button');
+                button.classList.add('answer-btn');
+                button.innerHTML = choice;
+                button.dataset.index = index;
+                button.addEventListener('click', () => checkAnswer(button));
+                answersContainer.appendChild(button);
+            });
+            if (window.MathJax) {
+                window.MathJax.typesetPromise([questionText, answersContainer]).catch((err) => console.log('MathJax error: ', err));
+            }
+            questionModal.classList.add('visible');
+        }
+
+        function checkAnswer(button) {
+            const allButtons = answersContainer.querySelectorAll('.answer-btn');
+            const selectedAnswerIndex = parseInt(button.dataset.index);
+            const correctAnswerIndex = gameData[currentQuestionIndex].correctAnswer;
+            if (selectedAnswerIndex === correctAnswerIndex) {
+                allButtons.forEach(btn => btn.disabled = true);
+                audio.correct.play(); // PHÁT ÂM THANH KHI TRẢ LỜI ĐÚNG
+                button.classList.add('correct');
+                setTimeout(() => {
+                    questionModal.classList.remove('visible');
+                    document.querySelector(`.tile[data-question-index='${currentQuestionIndex}']`).classList.add('answered');
+                    answeredCount++;
+                    if (answeredCount === gameData.length) setTimeout(showFinalScreen, 800);
+                }, 1200);
+            } else {
+                audio.incorrect.play(); // PHÁT ÂM THANH KHI TRẢ LỜI SAI
+                button.disabled = true;
+                button.classList.add('incorrect');
+            }
+        }
+        
+        function showFinalScreen() {
+            audio.win.play(); // PHÁT ÂM THANH KHI CHIẾN THẮNG
+            finalReveal.classList.add('visible');
+        }
+
+        restartBtn.addEventListener('click', initializeGame);
+        document.addEventListener('DOMContentLoaded', initializeGame);
+    </script>
+</body>
+</html>
