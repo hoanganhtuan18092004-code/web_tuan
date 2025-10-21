@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gameshow Trí Tuệ - Vượt Chướng Ngại Vật</title>
+    
+    <!-- Cấu hình MathJax để nhận diện delimiter '$' -->
+    <script>
+      MathJax = {
+        tex: {
+          inlineMath: [['$', '$'], ['\\(', '\\)']],
+          displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        },
+        svg: {
+          fontCache: 'global'
+        }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+        :root {
+            --primary-color: #0052D4;
+            --secondary-color: #4364F7;
+            --background-color: #f0f2f5;
+            --text-color: #333;
+            --light-text-color: #fff;
+            --correct-color: #28a745;
+            --incorrect-color: #dc3545;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --tile-gap: 10px; /* Khoảng cách giữa các ô */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--background-color);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 10px; }
+        header p { font-size: 1.1rem; color: #666; margin-bottom: 20px; }
+
+        #image-puzzle {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 20px auto;
+            aspect-ratio: 16/9; 
+            /* === THAY ĐỔI 1: Đường dẫn ảnh nền === */
+            background-image: url('Euclid.png');
+            background-size: cover;
+            background-position: center;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px var(--shadow-color);
+        }
+        
+        #tiles-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: var(--tile-gap);
+            width: 100%;
+            height: 100%;
+            padding: var(--tile-gap);
+        }
+
+        .tile {
+            background: linear-gradient(145deg, #2979ff, #0d47a1);
+            color: var(--light-text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            height: 100%;
+        }
+
+        .tile:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+            z-index: 20;
+        }
+
+        .tile.answered {
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            transform: scale(0);
+            opacity: 0;
+            cursor: default;
+        }
+        
+        .tile[data-question-index="0"] { grid-area: 1 / 1 / 2 / 2; }
+        .tile[data-question-index="1"] { grid-area: 1 / 2 / 2 / 3; }
+        .tile[data-question-index="3"] { grid-area: 2 / 1 / 3 / 2; }
+        .tile[data-question-index="2"] { grid-area: 2 / 2 / 3 / 3; }
+        
+        .tile[data-question-index="4"] {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: calc(50% + 3 * var(--tile-gap)); 
+            height: calc(50% + 1 * var(--tile-gap));
+            z-index: 10;
+        }
+        
+        .tile[data-question-index="4"]:hover {
+             transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        #question-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+            z-index: 1000;
+        }
+        #question-modal.visible { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white; padding: 40px; border-radius: 15px;
+            width: 90%; max-width: 700px; transform: scale(0.9); transition: transform 0.3s;
+        }
+        #question-modal.visible .modal-content { transform: scale(1); }
+        #question-text { font-size: 1.3rem; margin-bottom: 25px; line-height: 1.6; }
+        #answers-container { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .answer-btn {
+            background-color: #f8f9fa; border: 2px solid #dee2e6; border-radius: 10px;
+            padding: 15px; font-size: 1rem; cursor: pointer; transition: all 0.2s;
+            text-align: left; width: 100%; display: flex; align-items: center;
+        }
+        .answer-btn:hover:not(:disabled) { background-color: #e9ecef; border-color: var(--secondary-color); }
+        .answer-btn.correct { background-color: #d4edda; border-color: var(--correct-color); color: #155724; font-weight: 600; }
+        .answer-btn.incorrect { background-color: #f8d7da; border-color: var(--incorrect-color); color: #721c24; animation: shake 0.5s; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 10%,30%,50%,70%,90%{transform:translateX(-8px)} 20%,40%,60%,80%{transform:translateX(8px)} }
+        
+        #final-reveal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+            color: var(--light-text-color); opacity: 0; visibility: hidden;
+            transition: opacity 0.5s, visibility 0.5s; z-index: 2000; text-align: center;
+        }
+        #final-reveal.visible { opacity: 1; visibility: visible; }
+        #final-reveal h2 { font-size: 3rem; margin-bottom: 20px; animation: fadeInDown 1s; }
+        #final-reveal p { font-size: 1.5rem; margin-bottom: 30px; animation: fadeInUp 1s 0.5s; }
+        #final-image { max-width: 90%; width: 400px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #restart-btn {
+            margin-top: 30px; padding: 15px 30px; font-size: 1.2rem;
+            background: linear-gradient(135deg, #6B89F7, var(--secondary-color));
+            color: var(--light-text-color); border: none; border-radius: 10px;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        #restart-btn:hover { transform: scale(1.05); }
+
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (min-width: 600px) { #answers-container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) {
+            header h1 { font-size: 2rem; }
+            .tile { font-size: 2.5rem; border-radius: 15px;}
+            .modal-content { padding: 20px; }
+            #question-text { font-size: 1.1rem; }
+            #final-reveal h2 { font-size: 2rem; }
+            #final-reveal p { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- THÊM CÁC THẺ ÂM THANH -->
+    <audio id="correct-sound" src="https://actions.google.com/sounds/v1/positive/success.ogg" preload="auto"></audio>
+    <audio id="incorrect-sound" src="https://actions.google.com/sounds/v1/negative/failure.ogg" preload="auto"></audio>
+    <audio id="win-sound" src="https://actions.google.com/sounds/v1/human_voices/celebratory_yell.ogg" preload="auto"></audio>
+    <audio id="tile-click-sound" src="https://actions.google.com/sounds/v1/ui/ui_tap_forward.ogg" preload="auto"></audio>
+
+    <div id="game-container">
+        <header>
+            <h1>Vượt Chướng Ngại Vật</h1>
+            <p>Trả lời 5 câu hỏi để khám phá bức chân dung bí ẩn!</p>
+        </header>
+        <div id="image-puzzle">
+            <div id="tiles-grid"></div>
+        </div>
+    </div>
+
+    <div id="question-modal">
+        <div class="modal-content">
+            <div id="question-text"></div>
+            <div id="answers-container"></div>
+        </div>
+    </div>
+
+    <div id="final-reveal">
+        <h2>XUẤT SẮC!</h2>
+        <!-- === THAY ĐỔI 2: Đường dẫn ảnh kết quả === -->
+        <img id="final-image" src="Euclid.png" alt="Chân dung Euclid">
+        <p>Euclid - cha đẻ của hình học</p>
+        <button id="restart-btn">Chơi Lại</button>
+    </div>
+
+    <script>
+        const gameData = [
+            { question: String.raw`Trong tam giác ABC với các cạnh a, b, c, mệnh đề nào sau đây là phát biểu đúng của định lý cosin?`, choices: [ String.raw`$a^2 = b^2 + c^2 + 2bc \cos A$`, String.raw`$a^2 = b^2 + c^2 - 2bc \cos A$`, String.raw`$a^2 = b^2 + c^2 - 2bc \sin A$`, String.raw`$c^2 = a^2 - b^2 - 2ab \cos C$` ], correctAnswer: 1 },
+            { question: String.raw`Cho tam giác ABC có các cạnh a, b, c. Cosin của góc A được tính bằng công thức nào?`, choices: [ String.raw`$\cos A = \frac{b^2 + c^2 - a^2}{2bc}$`, String.raw`$\cos A = \frac{a^2 + c^2 - b^2}{2ac}$`, String.raw`$\cos A = \frac{a^2 + b^2 - c^2}{2ab}$`, String.raw`$\cos A = \frac{b^2 + c^2 + a^2}{2bc}$` ], correctAnswer: 0 },
+            { question: String.raw`Trong tam giác $ABC$, biết $a = 6,b = 8$, và $c = 10$. Góc $C$ có giá trị gần nhất là:`, choices: [ String.raw`$30^\circ$`, String.raw`$45^\circ$`, String.raw`$60^\circ$`, String.raw`$90^\circ$` ], correctAnswer: 3 },
+            { question: String.raw`Cho tam giác ABC có $b = 6$, $c = 8$, và góc $A = 60^\circ$. Tính độ dài cạnh a.`, choices: [ String.raw`$a = 2\sqrt{13}$`, String.raw`$a = \sqrt{52}$`, String.raw`$a = 10$`, String.raw`$a = \sqrt{148}$` ], correctAnswer: 0 },
+            { question: String.raw`Cho tam giác $ABC$ với $AB = 5, AC = 7$, và góc $\angle BAC = 60^\circ$. Độ dài cạnh $BC$ là:`, choices: [ String.raw`$ \sqrt{39} $`, String.raw`$ \sqrt{61} $`, String.raw`$ \sqrt{83} $`, String.raw`$ \sqrt{89} $` ], correctAnswer: 0 }
+        ];
+        
+        const tilesGrid = document.getElementById('tiles-grid');
+        const questionModal = document.getElementById('question-modal');
+        const questionText = document.getElementById('question-text');
+        const answersContainer = document.getElementById('answers-container');
+        const finalReveal = document.getElementById('final-reveal');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        const audio = { 
+            correct: document.getElementById('correct-sound'), 
+            incorrect: document.getElementById('incorrect-sound'), 
+            win: document.getElementById('win-sound'), 
+            click: document.getElementById('tile-click-sound') 
+        };
+        
+        let currentQuestionIndex = null, answeredCount = 0;
+
+        function initializeGame() {
+            tilesGrid.innerHTML = '';
+            answeredCount = 0;
+            finalReveal.classList.remove('visible');
+            gameData.forEach((_, index) => {
+                const tile = document.createElement('div');
+                tile.classList.add('tile');
+                tile.dataset.questionIndex = index;
+                const displayOrder = [1, 2, 4, 3, 5];
+                tile.textContent = displayOrder[index];
+                tile.addEventListener('click', () => handleTileClick(index));
+                tilesGrid.appendChild(tile);
+            });
+        }
+
+        function handleTileClick(index) {
+            const tile = document.querySelector(`.tile[data-question-index='${index}']`);
+            if (tile.classList.contains('answered')) return;
+            audio.click.play();
+            currentQuestionIndex = index;
+            showQuestion(gameData[index]);
+        }
+        
+        function showQuestion(questionData) {
+            questionText.innerHTML = questionData.question;
+            answersContainer.innerHTML = '';
+            questionData.choices.forEach((choice, index) => {
+                const button = document.createElement('button');
+                button.classList.add('answer-btn');
+                button.innerHTML = choice;
+                button.dataset.index = index;
+                button.addEventListener('click', () => checkAnswer(button));
+                answersContainer.appendChild(button);
+            });
+            if (window.MathJax) {
+                window.MathJax.typesetPromise([questionText, answersContainer]).catch((err) => console.log('MathJax error: ', err));
+            }
+            questionModal.classList.add('visible');
+        }
+
+        function checkAnswer(button) {
+            const allButtons = answersContainer.querySelectorAll('.answer-btn');
+            const selectedAnswerIndex = parseInt(button.dataset.index);
+            const correctAnswerIndex = gameData[currentQuestionIndex].correctAnswer;
+            if (selectedAnswerIndex === correctAnswerIndex) {
+                allButtons.forEach(btn => btn.disabled = true);
+                audio.correct.play();
+                button.classList.add('correct');
+                setTimeout(() => {
+                    questionModal.classList.remove('visible');
+                    document.querySelector(`.tile[data-question-index='${currentQuestionIndex}']`).classList.add('answered');
+                    answeredCount++;
+                    if (answeredCount === gameData.length) setTimeout(showFinalScreen, 800);
+                }, 1200);
+            } else {
+                audio.incorrect.play();
+                button.disabled = true;
+                button.classList.add('incorrect');
+            }
+        }
+        
+        function showFinalScreen() {
+            audio.win.play();
+            finalReveal.classList.add('visible');
+        }
+
+        restartBtn.addEventListener('click', initializeGame);
+        document.addEventListener('DOMContentLoaded', initializeGame);
+    </script>
+</body>
+</html>
