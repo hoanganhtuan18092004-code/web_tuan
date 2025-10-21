@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tứ diện Sierpinski 3D</title>
+    
+    <!-- === PHẦN 1: CSS - ĐỊNH DẠNG GIAO DIỆN === -->
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #111; /* Nền tối để hình 3D nổi bật */
+            color: #fff;
+            overflow: hidden; /* Ẩn thanh cuộn */
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 15px 25px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            max-width: 350px;
+            border-left: 3px solid #4a90e2;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 1.5em;
+        }
+
+        p {
+            margin: 5px 0;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .legend {
+            margin-top: 15px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .dot {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .red { background-color: #e74c3c; }
+        .green { background-color: #2ecc71; }
+        .blue { background-color: #3498db; }
+        .yellow { background-color: #f1c40f; }
+    </style>
+</head>
+<body>
+    
+    <!-- === PHẦN 2: HTML - CẤU TRÚC NỘI DUNG === -->
+    <div id="info">
+        <h1>Tứ diện Sierpinski (3D)</h1>
+        <p>
+            Được tạo ra bằng thuật toán "Chaos Game" trong không gian 3 chiều. 
+            Mỗi điểm được tô màu dựa trên đỉnh (tâm co) được chọn ngẫu nhiên.
+        </p>
+        <div class="legend">
+            <span class="dot red"></span> f₁ (tâm tại gốc tọa độ)<br>
+            <span class="dot green"></span> f₂ (tâm trên trục X)<br>
+            <span class="dot blue"></span> f₃ (tâm trên mặt phẳng XY)<br>
+            <span class="dot yellow"></span> f₄ (tâm ở đỉnh trên cùng)
+        </div>
+        <p><em>Kéo chuột để xoay, lăn chuột để phóng to/thu nhỏ.</em></p>
+    </div>
+
+    <!-- === PHẦN 3: JAVASCRIPT - LOGIC VÀ ĐỒ HỌA 3D === -->
+    
+    <!-- 'importmap' cho phép trình duyệt biết nơi tìm thư viện 'three' -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <!-- Script chính của chúng ta, với type="module" để sử dụng 'import' -->
+    <script type="module">
+        // --- BƯỚC 1: IMPORT THƯ VIỆN VÀ THIẾT LẬP CƠ BẢN ---
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; 
+        controls.autoRotate = true; // Thêm hiệu ứng tự xoay
+        controls.autoRotateSpeed = 0.5;
+
+        // --- BƯỚC 2: ĐỊNH NGHĨA CÁC HÀM CO (THÔNG QUA CÁC ĐỈNH) ---
+        const vertices = [
+            new THREE.Vector3(0, 0, 0),                                     // P1 (tâm cho f1)
+            new THREE.Vector3(1, 0, 0),                                     // P2 (tâm cho f2)
+            new THREE.Vector3(0.5, Math.sqrt(3) / 2, 0),                    // P3 (tâm cho f3)
+            new THREE.Vector3(0.5, Math.sqrt(3) / 6, Math.sqrt(6) / 3)       // P4 (tâm cho f4)
+        ];
+
+        const colors = [
+            new THREE.Color('#e74c3c'), // Đỏ - f1
+            new THREE.Color('#2ecc71'), // Xanh lá - f2
+            new THREE.Color('#3498db'), // Xanh da trời - f3
+            new THREE.Color('#f1c40f')  // Vàng - f4
+        ];
+
+        // --- BƯỚC 3: THỰC HIỆN THUẬT TOÁN CHAOS GAME ---
+        const numberOfPoints = 100000;
+        const positions = new Float32Array(numberOfPoints * 3); // Mảng lưu tọa độ 3D
+        const pointColors = new Float32Array(numberOfPoints * 3); // Mảng lưu màu RGB
+
+        let currentPoint = new THREE.Vector3(Math.random(), Math.random(), Math.random());
+
+        for (let i = 0; i < numberOfPoints; i++) {
+            const randomIndex = Math.floor(Math.random() * 4);
+            const targetVertex = vertices[randomIndex];
+            const targetColor = colors[randomIndex];
+            
+            // Áp dụng hàm co (hệ số 0.5)
+            currentPoint.lerp(targetVertex, 0.5);
+
+            // Lưu tọa độ điểm vào mảng
+            positions[i * 3]     = currentPoint.x;
+            positions[i * 3 + 1] = currentPoint.y;
+            positions[i * 3 + 2] = currentPoint.z;
+
+            // Lưu màu của điểm vào mảng
+            pointColors[i * 3]     = targetColor.r;
+            pointColors[i * 3 + 1] = targetColor.g;
+            pointColors[i * 3 + 2] = targetColor.b;
+        }
+
+        // --- BƯỚC 4: TẠO HÌNH HỌC TỪ CÁC ĐIỂM ĐÃ TÍNH ---
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(pointColors, 3));
+
+        geometry.center(); // Dịch chuyển tâm hình học về gốc tọa độ
+
+        const material = new THREE.PointsMaterial({
+            size: 0.005,
+            vertexColors: true // Quan trọng: Cho phép vật liệu sử dụng màu từ geometry
+        });
+
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 1.5;
+
+        // --- BƯỚC 5: VÒNG LẶP ANIMATION ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Cập nhật điều khiển (xoay, zoom)
+            renderer.render(scene, camera);
+        }
+
+        // Xử lý khi cửa sổ thay đổi kích thước
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
