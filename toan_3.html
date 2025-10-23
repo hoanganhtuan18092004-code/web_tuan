@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Game - Fractal Kim Cương (Đa sắc)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #222; /* MỚI: Nền tối để màu sắc nổi bật hơn */
+        }
+        canvas {
+            border: 1px solid #555;
+            background-color: #000000; /* MỚI: Nền canvas màu đen */
+        }
+        h1 {
+            color: #eee; /* MỚI: Chữ màu sáng hơn */
+        }
+    </style>
+</head>
+<body>
+    <h1>Fractal Kim Cương (Đa sắc)</h1>
+    <canvas id="fractalCanvas" width="600" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('fractalCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Số lượng điểm sẽ vẽ, tăng lên để hình rõ nét hơn
+        const NUM_POINTS = 150000;
+        
+        // Hệ số co
+        const SCALE = 1 / 3;
+
+        // Định nghĩa 8 hàm co thông qua các vector tịnh tiến (e, f)
+        const functions = [
+            { e: -2/3, f: -2/3 }, // Dưới-Trái
+            { e: 0,    f: -2/3 }, // Dưới-Giữa
+            { e: 2/3,  f: -2/3 }, // Dưới-Phải
+            { e: -2/3, f: 0 },    // Giữa-Trái
+            { e: 2/3,  f: 0 },    // Giữa-Phải
+            { e: -2/3, f: 2/3 },  // Trên-Trái
+            { e: 0,    f: 2/3 },  // Trên-Giữa
+            { e: 2/3,  f: 2/3 }   // Trên-Phải
+        ];
+
+        // MỚI: Tạo một bảng màu với 8 màu sắc rực rỡ
+        const colorPalette = [
+            '#ff6b6b', // red
+            '#f9a826', // orange
+            '#f7d716', // yellow
+            '#4caf50', // green
+            '#2196f3', // blue
+            '#3f51b5', // indigo
+            '#9c27b0', // violet
+            '#e91e63'  // pink
+        ];
+
+        function drawFractal() {
+            // Xóa canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Khởi tạo điểm bắt đầu ngẫu nhiên trong không gian [-1, 1] x [-1, 1]
+            let x = Math.random() * 2 - 1;
+            let y = Math.random() * 2 - 1;
+
+            // Bắt đầu vòng lặp Chaos Game
+            for (let i = 0; i < NUM_POINTS; i++) {
+                // 1. Chọn ngẫu nhiên một trong 8 hàm
+                const choice = Math.floor(Math.random() * functions.length);
+                const func = functions[choice];
+
+                // 2. Áp dụng hàm co: P_mới = scale * P_cũ + t
+                const newX = x * SCALE + func.e;
+                const newY = y * SCALE + func.f;
+
+                // 3. Cập nhật điểm hiện tại
+                x = newX;
+                y = newY;
+                
+                // Bỏ qua 20 lần lặp đầu tiên để điểm hội tụ vào attractor
+                if (i > 20) {
+                    // MỚI: Đặt màu cho điểm vẽ dựa trên hàm co đã được chọn
+                    ctx.fillStyle = colorPalette[choice];
+
+                    // 4. Vẽ điểm lên canvas
+                    const canvasX = (x + 1) * width / 2;
+                    const canvasY = (1 - y) * height / 2;
+                    
+                    ctx.fillRect(canvasX, canvasY, 1, 1); // Vẽ một pixel
+                }
+            }
+        }
+
+        // Bắt đầu vẽ
+        drawFractal();
+    </script>
+</body>
+</html>
