@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Fractal - Cantor Dust (Đa sắc)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: white;
+            background-color: #000000; /* Nền đen để màu nổi bật hơn */
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            display: block;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h1>3D Fractal: Cantor Dust (Đa sắc)</h1>
+        <p>Mỗi màu đại diện cho một trong 20 phép biến đổi co.</p>
+    </div>
+    <div id="container"></div>
+
+    <!-- Nhúng thư viện Three.js và OrbitControls -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls, points;
+
+        function init() {
+            // 1. THIẾT LẬP CẢNH, CAMERA, RENDERER
+            scene = new THREE.Scene();
+            
+            const container = document.getElementById('container');
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(1.2, 1.2, 1.2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // 2. THÊM ĐIỀU KHIỂN
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // 3. ĐỊNH NGHĨA HỆ HÀM LẶP (IFS)
+            const SCALE = 1 / 3;
+            const translations = [];
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    for (let k = -1; k <= 1; k++) {
+                        if (Math.abs(i) + Math.abs(j) + Math.abs(k) >= 2) {
+                            translations.push(new THREE.Vector3(i, j, k));
+                        }
+                    }
+                }
+            }
+            
+            // MỚI: Tạo một bảng màu với 20 màu sắc khác nhau
+            // Chúng ta dùng không gian màu HSL (Hue, Saturation, Lightness) để tạo ra các màu cầu vồng đẹp mắt.
+            const colorPalette = [];
+            for (let i = 0; i < translations.length; i++) {
+                const color = new THREE.Color();
+                // Hue chạy từ 0 đến 1 sẽ tạo ra một dải màu cầu vồng
+                color.setHSL(i / translations.length, 0.8, 0.6); 
+                colorPalette.push(color);
+            }
+
+            // 4. THUẬT TOÁN CHAOS GAME
+            const NUM_POINTS = 150000; // Tăng số điểm để hình rõ nét hơn
+            const positions = [];
+            const colors = []; // MỚI: Mảng để lưu trữ màu sắc của từng điểm
+            let currentPoint = new THREE.Vector3(Math.random(), Math.random(), Math.random());
+
+            for (let i = 0; i < NUM_POINTS; i++) {
+                const randomIndex = Math.floor(Math.random() * translations.length);
+                const translation = translations[randomIndex];
+                
+                // MỚI: Lấy màu tương ứng với hàm co được chọn
+                const color = colorPalette[randomIndex];
+
+                currentPoint.multiplyScalar(SCALE);
+                currentPoint.add(translation.clone().multiplyScalar(SCALE));
+
+                if (i > 20) {
+                    positions.push(currentPoint.x, currentPoint.y, currentPoint.z);
+                    // MỚI: Thêm thông tin màu (r, g, b) vào mảng màu
+                    colors.push(color.r, color.g, color.b);
+                }
+            }
+            
+            // 5. TẠO ĐỐI TƯỢNG ĐÁM MÂY ĐIỂM
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            // MỚI: Thêm thuộc tính màu vào geometry
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                // color: 0x87CEEB, // Không dùng màu cố định nữa
+                size: 0.015, // Tăng kích thước điểm một chút
+                sizeAttenuation: true,
+                vertexColors: true // MỚI: Bật chế độ sử dụng màu cho từng đỉnh (quan trọng nhất!)
+            });
+
+            points = new THREE.Points(geometry, material);
+            scene.add(points);
+            
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
